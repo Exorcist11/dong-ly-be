@@ -74,6 +74,7 @@ Trước khi thực hiện bất kỳ hành động viết hay sửa code nào, 
 6. **KHÔNG tin tưởng dữ liệu từ client**: Toàn bộ kiểm tra quyền hạn (Authorization) và quy tắc nghiệp vụ quan trọng phải được bảo vệ tại Backend.
 7. **KHÔNG báo cáo giả mạo kết quả test**: TUYỆT ĐỐI KHÔNG khẳng định "Tests passed" hoặc "Build successful" nếu chưa thực sự gọi lệnh chạy test/build trong terminal.
 8. **KHÔNG sửa code ngoài phạm vi (Out-of-scope refactoring)**: Không tiện tay sửa đổi các file không liên quan đến task hiện tại.
+9. **KHÔNG tự ý push code lên remote (Never push code to remote)**: AI Agent TUYỆT ĐỐI KHÔNG ĐƯỢC CHẠY LỆNH `git push`. Quyền đẩy code lên remote repository (GitHub/GitLab) hoàn toàn thuộc về người dùng (USER) sau khi kiểm tra và phê duyệt các commit cục bộ.
 
 ---
 

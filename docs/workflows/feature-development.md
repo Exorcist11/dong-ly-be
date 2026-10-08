@@ -73,5 +73,6 @@ Commit với thông điệp tiếng Việt (Commit)
 * Chạy lệnh: `./mvnw clean compile` hoặc `./mvnw clean package -DskipTests` để đảm bảo đóng gói hoàn hảo không lỗi cú pháp.
 
 ### Bước 9: Tạo Git Commit Tiếng Việt (Commit)
-* Tạo commit với thông điệp tiếng Việt chuẩn Conventional Commits:
+* Tạo commit cục bộ với thông điệp tiếng Việt chuẩn Conventional Commits:
   `feat: thêm chức năng <tên tính năng>`
+* **Lưu ý**: DỪNG LẠI tại bước local commit. **TUYỆT ĐỐI KHÔNG CHẠY `git push`**. Để người dùng tự review và push code lên remote.

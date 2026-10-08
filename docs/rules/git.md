@@ -69,5 +69,15 @@ Trước khi thực hiện lệnh commit, lập trình viên hoặc AI Agent ph�
     ↓
 4. Biên dịch thử toàn bộ dự án (Build: ./mvnw clean compile)
     ↓
-5. Tạo Git commit với thông điệp tiếng Việt chuẩn
+5. Tạo Git commit cục bộ với thông điệp tiếng Việt chuẩn (Local Commit)
 ```
+
+---
+
+## 4. Quy Định Tuyệt Đối Về Lệnh `git push`
+
+> [!CAUTION]
+> **AI Agent TUYỆT ĐỐI KHÔNG ĐƯỢC PHÉP CHẠY LỆNH `git push`.**
+> 
+> * Mọi thao tác đẩy commit lên máy chủ từ xa (Remote repository như GitHub / GitLab) **hoàn toàn do Người dùng (USER) tự tay quyết định và thực thi**.
+> * Sau khi hoàn thành kiểm thử và tạo local commit an toàn, AI Agent phải dừng lại, báo cáo kết quả và thông báo để người dùng chủ động kiểm tra và thực hiện `git push`.

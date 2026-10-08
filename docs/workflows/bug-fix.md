@@ -62,3 +62,4 @@ Commit với thông điệp tiếng Việt (Commit)
 * Tạo commit theo định dạng:
   `fix: sửa lỗi <mô tả ngắn gọn về bản chất lỗi>`
   * *Ví dụ*: `fix: sửa lỗi tính sai tổng tiền đơn hàng khi áp dụng voucher giảm giá`
+* **Lưu ý**: Chỉ tạo local commit, **KHÔNG CHẠY `git push`** để người dùng tự review và push code.
