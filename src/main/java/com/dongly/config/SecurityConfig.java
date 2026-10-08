@@ -5,6 +5,7 @@ import com.dongly.security.JwtAuthenticationEntryPoint;
 import com.dongly.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -61,9 +62,9 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        // Cho phép truy cập các endpoint xác thực (login, register, v.v.)
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        // Toàn bộ các yêu cầu còn lại bắt buộc phải xác thực
+                        // Cho phép truy cập công khai duy nhất 2 endpoint đăng nhập và làm mới token
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+                        // Toàn bộ các yêu cầu còn lại (bao gồm /api/v1/auth/me, /api/v1/auth/logout, /api/v1/users/**) bắt buộc phải xác thực
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

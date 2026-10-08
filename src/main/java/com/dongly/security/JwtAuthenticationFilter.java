@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -42,11 +43,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             CurrentUser currentUser = jwtTokenProvider.extractCurrentUser(token);
 
-            List<SimpleGrantedAuthority> authorities = currentUser.roles()
+            List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+
+            // 1. Nạp roles với tiền tố ROLE_
+            currentUser.roles()
                     .stream()
                     .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
                     .map(SimpleGrantedAuthority::new)
-                    .toList();
+                    .forEach(authorities::add);
+
+            // 2. Nạp permissions trực tiếp làm GrantedAuthority
+            currentUser.permissions()
+                    .stream()
+                    .map(SimpleGrantedAuthority::new)
+                    .forEach(authorities::add);
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     currentUser,

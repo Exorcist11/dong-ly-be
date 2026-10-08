@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -14,6 +15,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,6 +35,16 @@ class SecurityConfigTest {
     void actuatorHealth_isPermittedWithoutAuth() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Endpoint /api/v1/auth/login mở công khai, không bị chặn bởi JWT filter")
+    void loginEndpoint_isPermittedWithoutAuth() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")));
     }
 
     @Test
@@ -56,18 +68,37 @@ class SecurityConfigTest {
     }
 
     @Test
-    @DisplayName("Endpoint yêu cầu bảo mật tiếp nhận request khi có token hợp lệ")
-    void securedEndpoint_withValidToken_passesSecurityFilter() throws Exception {
+    @DisplayName("Endpoint yêu cầu quyền hạn trả về 403 Forbidden khi thiếu permission")
+    void securedEndpoint_withoutPermission_returns403Forbidden() throws Exception {
         String token = jwtTokenProvider.generateAccessToken(
                 UUID.randomUUID(),
+                "testuser",
                 "test@dongly.vn",
-                List.of("ROLE_USER")
+                List.of("ROLE_STAFF"),
+                List.of() // không có quyền USER_READ
         );
 
-        // Đã qua tầng bảo mật JWT, đến tầng DispatcherServlet (trả về 404 Not Found do endpoint chưa cài đặt)
         mockMvc.perform(get("/api/v1/users")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code", is("RESOURCE_NOT_FOUND")));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)))
+                .andExpect(jsonPath("$.code", is("ACCESS_DENIED")));
+    }
+
+    @Test
+    @DisplayName("Endpoint tiếp nhận request khi token có quyền USER_READ hợp lệ")
+    void securedEndpoint_withPermission_passesSecurityFilter() throws Exception {
+        String token = jwtTokenProvider.generateAccessToken(
+                UUID.randomUUID(),
+                "admin",
+                "admin@dongly.vn",
+                List.of("ROLE_ADMIN"),
+                List.of("USER_READ")
+        );
+
+        mockMvc.perform(get("/api/v1/users")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
     }
 }

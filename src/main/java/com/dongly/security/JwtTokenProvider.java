@@ -30,7 +30,9 @@ import java.util.UUID;
 public class JwtTokenProvider {
 
     private static final String CLAIM_USER_ID = "uid";
+    private static final String CLAIM_USERNAME = "username";
     private static final String CLAIM_ROLES = "roles";
+    private static final String CLAIM_PERMISSIONS = "permissions";
 
     private final JwtProperties jwtProperties;
     private final SecretKey secretKey;
@@ -51,20 +53,35 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Tạo Access Token cho người dùng đã xác thực.
+     * Tạo Access Token đầy đủ cho người dùng đã xác thực.
      */
-    public String generateAccessToken(UUID userId, String email, Collection<String> roles) {
+    public String generateAccessToken(
+            UUID userId,
+            String username,
+            String email,
+            Collection<String> roles,
+            Collection<String> permissions
+    ) {
         Instant now = Instant.now();
         Instant expiry = now.plus(jwtProperties.accessTokenExpirationSeconds(), ChronoUnit.SECONDS);
 
         return Jwts.builder()
                 .subject(email)
                 .claim(CLAIM_USER_ID, userId.toString())
+                .claim(CLAIM_USERNAME, username)
                 .claim(CLAIM_ROLES, roles)
+                .claim(CLAIM_PERMISSIONS, permissions)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(secretKey)
                 .compact();
+    }
+
+    /**
+     * Quá tải tương thích ngược cho việc tạo Access Token cơ bản.
+     */
+    public String generateAccessToken(UUID userId, String email, Collection<String> roles) {
+        return generateAccessToken(userId, email, email, roles, List.of());
     }
 
     /**
@@ -91,10 +108,32 @@ public class JwtTokenProvider {
         Claims claims = parseClaims(token);
         UUID userId = UUID.fromString(claims.get(CLAIM_USER_ID, String.class));
         String email = claims.getSubject();
+        String username = claims.get(CLAIM_USERNAME, String.class);
+        if (username == null) {
+            username = email;
+        }
+
         List<String> rawRoles = claims.get(CLAIM_ROLES, List.class);
         Set<String> roles = (rawRoles != null) ? new HashSet<>(rawRoles) : Set.of();
 
-        return new CurrentUser(userId, email, roles);
+        List<String> rawPermissions = claims.get(CLAIM_PERMISSIONS, List.class);
+        Set<String> permissions = (rawPermissions != null) ? new HashSet<>(rawPermissions) : Set.of();
+
+        return new CurrentUser(userId, username, email, roles, permissions);
+    }
+
+    /**
+     * Lấy thời gian sống cấu hình của Access Token tính theo giây.
+     */
+    public long getAccessTokenExpirationSeconds() {
+        return jwtProperties.accessTokenExpirationSeconds();
+    }
+
+    /**
+     * Lấy thời gian sống cấu hình của Refresh Token tính theo giây.
+     */
+    public long getRefreshTokenExpirationSeconds() {
+        return jwtProperties.refreshTokenExpirationSeconds();
     }
 
     /**
