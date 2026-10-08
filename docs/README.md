@@ -31,6 +31,7 @@ Toàn bộ hệ thống tài liệu được phân bổ khoa học theo cấu tr
 ```text
 docs/
 ├── README.md                           # Bản đồ chỉ mục & hướng dẫn sử dụng tài liệu
+├── project-overview.md                 # Tổng quan dự án & Yêu cầu nghiệp vụ cốt lõi (Đông Lý)
 │
 ├── architecture/                       # Kiến trúc tổng thể và tổ chức dự án
 │   ├── overview.md                     # Tổng quan kiến trúc & các nguyên lý cốt lõi
@@ -77,6 +78,7 @@ Khi tiếp nhận một loại công việc cụ thể, hãy tra cứu các tài
 
 | Ngữ cảnh công việc | Tài liệu Quy tắc cần đọc | Quy trình cần tuân thủ |
 | :--- | :--- | :--- |
+| **Tìm hiểu Nghiệp vụ & Bối cảnh dự án** | [project-overview.md](file:///e:/du-an-ma/Spring-BE/docs/project-overview.md)<br>[overview.md](file:///e:/du-an-ma/Spring-BE/docs/architecture/overview.md) | [feature-development.md](file:///e:/du-an-ma/Spring-BE/docs/workflows/feature-development.md) |
 | **Tạo mới hoặc sửa REST API** | [api.md](file:///e:/du-an-ma/Spring-BE/docs/rules/api.md), [dto.md](file:///e:/du-an-ma/Spring-BE/docs/rules/dto.md), [validation.md](file:///e:/du-an-ma/Spring-BE/docs/rules/validation.md), [exception-handling.md](file:///e:/du-an-ma/Spring-BE/docs/rules/exception-handling.md) | [feature-development.md](file:///e:/du-an-ma/Spring-BE/docs/workflows/feature-development.md) |
 | **Thay đổi Database / Migration / JPA Entity** | [database.md](file:///e:/du-an-ma/Spring-BE/docs/rules/database.md), [jpa.md](file:///e:/du-an-ma/Spring-BE/docs/rules/jpa.md), [transaction.md](file:///e:/du-an-ma/Spring-BE/docs/rules/transaction.md) | [feature-development.md](file:///e:/du-an-ma/Spring-BE/docs/workflows/feature-development.md) |
 | **Cài đặt Xác thực / Phân quyền / Bảo mật** | [security.md](file:///e:/du-an-ma/Spring-BE/docs/rules/security.md), [configuration.md](file:///e:/du-an-ma/Spring-BE/docs/rules/configuration.md) | [feature-development.md](file:///e:/du-an-ma/Spring-BE/docs/workflows/feature-development.md) |
