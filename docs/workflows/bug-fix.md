@@ -57,9 +57,12 @@ Commit với thông điệp tiếng Việt (Commit)
 * Chạy bài test vừa viết để xác nhận lỗi đã được khắc phục hoàn toàn (Green Test).
 * Chạy toàn bộ test suite của module để bảo đảm việc sửa lỗi không làm hỏng các tính năng đang hoạt động bình thường khác (`./mvnw test`).
 
-### Bước 5: Build & Commit Tiếng Việt
+### Bước 5: Build & Soạn Sẵn Lệnh Commit Tiếng Việt
 * Chạy biên dịch kiểm tra: `./mvnw clean compile`.
-* Tạo commit theo định dạng:
-  `fix: sửa lỗi <mô tả ngắn gọn về bản chất lỗi>`
-  * *Ví dụ*: `fix: sửa lỗi tính sai tổng tiền đơn hàng khi áp dụng voucher giảm giá`
-* **Lưu ý**: Chỉ tạo local commit, **KHÔNG CHẠY `git push`** để người dùng tự review và push code.
+* Soạn sẵn câu lệnh commit bằng tiếng Việt theo định dạng:
+  ```bash
+  git add .
+  git commit -m "fix: sửa lỗi <mô tả ngắn gọn về bản chất lỗi>"
+  ```
+  * *Ví dụ*: `git commit -m "fix: sửa lỗi tính sai tổng tiền đơn hàng khi áp dụng voucher giảm giá"`
+* **Lưu ý**: **TUYỆT ĐỐI KHÔNG TỰ CHẠY `git commit` HOẶC `git push`** để người dùng tự review và copy vào terminal thực thi.

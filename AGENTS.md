@@ -42,7 +42,7 @@ Trước khi thực hiện bất kỳ hành động viết hay sửa code nào, 
     ↓
 11. Tự review lại thay đổi (Review changes & diff)
     ↓
-12. Chuẩn bị thông điệp Git commit bằng TIẾNG VIỆT
+12. Soạn sẵn lệnh Git commit bằng TIẾNG VIỆT (KHÔNG tự chạy commit/push)
 ```
 
 > [!IMPORTANT]
@@ -74,7 +74,7 @@ Trước khi thực hiện bất kỳ hành động viết hay sửa code nào, 
 6. **KHÔNG tin tưởng dữ liệu từ client**: Toàn bộ kiểm tra quyền hạn (Authorization) và quy tắc nghiệp vụ quan trọng phải được bảo vệ tại Backend.
 7. **KHÔNG báo cáo giả mạo kết quả test**: TUYỆT ĐỐI KHÔNG khẳng định "Tests passed" hoặc "Build successful" nếu chưa thực sự gọi lệnh chạy test/build trong terminal.
 8. **KHÔNG sửa code ngoài phạm vi (Out-of-scope refactoring)**: Không tiện tay sửa đổi các file không liên quan đến task hiện tại.
-9. **KHÔNG tự ý push code lên remote (Never push code to remote)**: AI Agent TUYỆT ĐỐI KHÔNG ĐƯỢC CHẠY LỆNH `git push`. Quyền đẩy code lên remote repository (GitHub/GitLab) hoàn toàn thuộc về người dùng (USER) sau khi kiểm tra và phê duyệt các commit cục bộ.
+9. **KHÔNG tự ý chạy lệnh `git commit` hoặc `git push` (Never commit or push directly)**: AI Agent **TUYỆT ĐỐI KHÔNG ĐƯỢC CHẠY LỆNH `git commit` HOẶC `git push`**. Sau khi hoàn thành giải pháp và kiểm thử, Agent chỉ stage file hoặc liệt kê các thay đổi, sau đó **viết sẵn câu lệnh commit hoàn chỉnh bằng tiếng Việt** (ví dụ: `git commit -m "feat: thêm chức năng đăng ký tài khoản"`) để người dùng kiểm tra nội dung, copy vào terminal và tự push lên remote.
 
 ---
 
@@ -102,21 +102,22 @@ Khi có sự xung đột giữa các nguồn chỉ dẫn, áp dụng thứ tự 
 
 ---
 
-## 6. Quy Định Bắt Buộc Về Git Commit Bằng Tiếng Việt
+## 6. Quy Định Bắt Buộc Về Việc Soạn Sẵn Lệnh Git Commit Bằng Tiếng Việt
 
-Sau khi hoàn thành và kiểm thử giải pháp, mọi commit phải được viết bằng tiếng Việt theo định dạng Conventional Commits:
+Sau khi hoàn thành và kiểm thử giải pháp, AI Agent **KHÔNG tự chạy lệnh commit**. Thay vào đó, Agent phải chuẩn bị sẵn mẫu lệnh bằng tiếng Việt theo định dạng Conventional Commits để người dùng copy vào terminal:
 
-```text
-<type>: <mô tả ngắn gọn bằng tiếng Việt>
+```bash
+git add .
+git commit -m "<type>: <mô tả ngắn gọn bằng tiếng Việt>"
 ```
 
 **Các type hợp lệ**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `security`.
 
-**Ví dụ chuẩn**:
-* `feat: thêm chức năng đăng ký tài khoản người dùng`
-* `fix: sửa lỗi tính sai tổng tiền đơn hàng khi áp dụng mã giảm giá`
-* `refactor: tối ưu hóa truy vấn lấy danh sách sản phẩm theo danh mục`
-* `test: bổ sung unit test cho chức năng xác thực token JWT`
-* `docs: cập nhật tài liệu quy tắc bảo mật API`
+**Ví dụ chuẩn mực**:
+* `git commit -m "feat: thêm chức năng đăng ký tài khoản người dùng"`
+* `git commit -m "fix: sửa lỗi tính sai tổng tiền đơn hàng khi áp dụng mã giảm giá"`
+* `git commit -m "refactor: tối ưu hóa truy vấn lấy danh sách sản phẩm theo danh mục"`
+* `git commit -m "test: bổ sung unit test cho chức năng xác thực token JWT"`
+* `git commit -m "docs: cập nhật tài liệu quy tắc bảo mật API"`
 
 Chi tiết xem tại [`docs/rules/git.md`](file:///e:/du-an-ma/Spring-BE/docs/rules/git.md).
