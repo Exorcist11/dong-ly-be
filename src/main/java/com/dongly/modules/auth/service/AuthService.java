@@ -204,15 +204,18 @@ public class AuthService {
     }
 
     /**
-     * Đăng xuất và vô hiệu hóa phiên làm việc của Refresh Token tương ứng.
+     * Đăng xuất và vô hiệu hóa phiên làm việc của Refresh Token tương ứng của chính người dùng hiện tại.
      */
     @Transactional
-    public void logout(LogoutRequest request) {
+    public void logout(LogoutRequest request, CurrentUser currentUser) {
         String rawToken = request.refreshToken().trim();
         String tokenHash = hashToken(rawToken);
 
         refreshTokenRepository.findByTokenHash(tokenHash)
                 .ifPresent(token -> {
+                    if (!token.getUser().getId().equals(currentUser.id())) {
+                        throw new AppException(ErrorCode.ACCESS_DENIED, "Không có quyền thu hồi phiên làm việc của người dùng khác");
+                    }
                     token.revoke();
                     refreshTokenRepository.save(token);
                 });

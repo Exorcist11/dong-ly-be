@@ -61,7 +61,10 @@ public class AuthController {
     @Operation(summary = "Đăng xuất tài khoản và thu hồi Refresh Token")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody LogoutRequest request) {
-        authService.logout(request);
+        CurrentUser currentUser = SecurityUtils.getCurrentUser()
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED, "Yêu cầu xác thực tài khoản"));
+
+        authService.logout(request, currentUser);
         return ResponseEntity.ok(ApiResponse.ok("Đăng xuất thành công"));
     }
 

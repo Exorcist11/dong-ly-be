@@ -145,8 +145,15 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.username", is("test_admin")));
 
-        // 5. Đăng xuất: POST /api/v1/auth/logout với newRefreshToken
+        // 5a. Đăng xuất không có Access Token -> Bị từ chối 401 UNAUTHORIZED
         String logoutPayload = String.format("{\"refreshToken\":\"%s\"}", newRefreshToken);
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(logoutPayload))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("UNAUTHORIZED")));
+
+        // 5b. Đăng xuất có Access Token chính chủ -> Thành công 200 OK
         mockMvc.perform(post("/api/v1/auth/logout")
                         .header("Authorization", "Bearer " + newAccessToken)
                         .contentType(MediaType.APPLICATION_JSON)

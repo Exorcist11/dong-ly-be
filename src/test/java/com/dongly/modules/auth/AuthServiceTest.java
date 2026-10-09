@@ -200,7 +200,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Đăng xuất thành công đánh dấu thu hồi Refresh Token tương ứng")
+    @DisplayName("Đăng xuất thành công đánh dấu thu hồi Refresh Token tương ứng của chính người dùng")
     void logout_revokesToken() {
         String rawToken = "active-token";
         String tokenHash = AuthService.hashToken(rawToken);
@@ -214,10 +214,47 @@ class AuthServiceTest {
 
         when(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(activeToken));
 
-        authService.logout(new LogoutRequest(rawToken));
+        CurrentUser currentUser = new CurrentUser(
+                sampleUser.getId(),
+                sampleUser.getUsername(),
+                sampleUser.getEmail(),
+                Set.of("ADMIN"),
+                Set.of()
+        );
+
+        authService.logout(new LogoutRequest(rawToken), currentUser);
 
         assertThat(activeToken.isRevoked()).isTrue();
         verify(refreshTokenRepository).save(activeToken);
+    }
+
+    @Test
+    @DisplayName("Đăng xuất với Refresh Token của người khác ném ngoại lệ ACCESS_DENIED")
+    void logout_differentUser_throwsAccessDenied() {
+        String rawToken = "other-user-token";
+        String tokenHash = AuthService.hashToken(rawToken);
+
+        RefreshToken otherUserToken = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .user(sampleUser)
+                .tokenHash(tokenHash)
+                .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                .build();
+
+        when(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(otherUserToken));
+
+        CurrentUser differentUser = new CurrentUser(
+                UUID.randomUUID(),
+                "another_user",
+                "another@dongly.vn",
+                Set.of("STAFF"),
+                Set.of()
+        );
+
+        assertThatThrownBy(() -> authService.logout(new LogoutRequest(rawToken), differentUser))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
     }
 
     @Test

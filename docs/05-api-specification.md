@@ -108,8 +108,10 @@ Mọi phản hồi lỗi tuân thủ mẫu:
 
 ### 2.4. Đăng xuất tài khoản (Logout)
 * **Endpoint**: `POST /api/v1/auth/logout`
-* **Quyền hạn**: **AUTHENTICATED**
-* **Mô tả**: Thu hồi và vô hiệu hóa Refresh Token của phiên làm việc hiện tại.
+* **Quyền hạn**: **AUTHENTICATED** (Bắt buộc Header `Authorization: Bearer <accessToken>`)
+* **Mô tả**: Thu hồi và vô hiệu hóa Refresh Token của phiên làm việc hiện tại. Hệ thống kiểm tra quyền sở hữu để đảm bảo chỉ chính chủ tài khoản mới có thể đăng xuất phiên của mình.
+* **Headers**:
+  * `Authorization`: `Bearer <accessToken>`
 * **Request Body**:
 ```json
 {
