@@ -1,11 +1,14 @@
 package com.dongly.modules.user;
 
+import com.dongly.modules.auth.entity.RefreshToken;
 import com.dongly.modules.auth.repository.RefreshTokenRepository;
 import com.dongly.modules.user.entity.Permission;
 import com.dongly.modules.user.entity.Role;
 import com.dongly.modules.user.entity.RoleStatus;
 import com.dongly.modules.user.entity.User;
 import com.dongly.modules.user.entity.UserStatus;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import com.dongly.modules.user.repository.PermissionRepository;
 import com.dongly.modules.user.repository.RoleRepository;
 import com.dongly.modules.user.repository.UserRepository;
@@ -21,9 +24,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -167,7 +175,7 @@ class UserControllerIntegrationTest {
                 operatorUser.getUsername(),
                 operatorUser.getEmail(),
                 List.of("ROLE_OPERATOR"),
-                List.of("USER_READ", "ROLE_ASSIGN")
+                List.of("USER_READ", "USER_CREATE", "USER_UPDATE", "ROLE_ASSIGN")
         );
 
         customerToken = jwtTokenProvider.generateAccessToken(
@@ -510,5 +518,157 @@ class UserControllerIntegrationTest {
         User reloadedUser = userRepository.findById(customerUser.getId()).orElseThrow();
         assertThat(reloadedUser.getRoles()).hasSize(1);
         assertThat(reloadedUser.getRoles().iterator().next().getCode()).isEqualTo("STAFF");
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/users: Ngăn tự nâng quyền - Operator không được tạo user có vai trò ADMIN")
+    void createUser_privilegeEscalation_assignAdmin_returns403() throws Exception {
+        String payload = """
+                {
+                    "username": "escalated_user",
+                    "email": "escalated@dongly.vn",
+                    "password": "Password123",
+                    "fullName": "Leo Thang",
+                    "roleCodes": ["ADMIN"]
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/users")
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", is("ACCESS_DENIED")));
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/users/{id}: Ngăn tự nâng quyền - Operator không được gán vai trò ADMIN khi cập nhật user")
+    void updateUser_privilegeEscalation_assignAdmin_returns403() throws Exception {
+        String payload = """
+                {
+                    "fullName": "Nhân viên nâng quyền",
+                    "email": "staff_escalated@dongly.vn",
+                    "roleCodes": ["ADMIN"]
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/" + staffUser.getId())
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", is("ACCESS_DENIED")));
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/users/{id}: Operator không được chỉnh sửa thông tin của tài khoản ADMIN")
+    void updateUser_nonAdminEditAdminProfile_returns403() throws Exception {
+        String payload = """
+                {
+                    "fullName": "Cố tình sửa Admin",
+                    "email": "hacked_admin@dongly.vn"
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/" + adminUser.getId())
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", is("ACCESS_DENIED")));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/v1/users/{id}/status: Operator không được khóa tài khoản ADMIN")
+    void updateUserStatus_nonAdminLockAdmin_returns403() throws Exception {
+        String payload = """
+                {
+                    "status": "LOCKED"
+                }
+                """;
+
+        mockMvc.perform(patch("/api/v1/users/" + adminUser.getId() + "/status")
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", is("ACCESS_DENIED")));
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/users/{id}/roles: Cập nhật vai trò sẽ tự động thu hồi toàn bộ Refresh Token của user")
+    void updateUserRoles_revokesRefreshTokens() throws Exception {
+        // Tạo sẵn Refresh Token cho customerUser
+        RefreshToken rt = refreshTokenRepository.save(RefreshToken.builder()
+                .user(customerUser)
+                .tokenHash("hash_sample_token_123")
+                .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                .createdByIp("127.0.0.1")
+                .build());
+
+        assertThat(rt.isRevoked()).isFalse();
+
+        String payload = """
+                {
+                    "roleCodes": ["STAFF"]
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/" + customerUser.getId() + "/roles")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk());
+
+        // Kiểm tra Refresh Token đã bị thu hồi hoàn toàn
+        RefreshToken reloadedRt = refreshTokenRepository.findById(rt.getId()).orElseThrow();
+        assertThat(reloadedRt.isRevoked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/users/{id}/roles: Request bị từ chối không làm thay đổi dữ liệu trong DB (Rollback)")
+    void updateUserRoles_rejectedRequest_doesNotChangeDatabase() throws Exception {
+        String payload = """
+                {
+                    "roleCodes": ["NON_EXISTENT_ROLE_XYZ"]
+                }
+                """;
+
+        mockMvc.perform(put("/api/v1/users/" + staffUser.getId() + "/roles")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("RESOURCE_NOT_FOUND")));
+
+        // Kiểm tra vai trò của staffUser trong DB vẫn nguyên vẹn là STAFF
+        User reloadedStaff = userRepository.findById(staffUser.getId()).orElseThrow();
+        assertThat(reloadedStaff.getRoles()).hasSize(1);
+        assertThat(reloadedStaff.getRoles().iterator().next().getCode()).isEqualTo("STAFF");
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users: Request kèm Access Token đã hết hạn trả về 401 Unauthorized")
+    void requestWithExpiredToken_returns401() throws Exception {
+        javax.crypto.SecretKey key = Keys.hmacShaKeyFor(
+                "dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RpbmctcHVycG9zZXMtb25seS1tdXN0LWJlLTI1Ni1iaXRz"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        String expiredToken = Jwts.builder()
+                .subject("expired_user@dongly.vn")
+                .claim("uid", UUID.randomUUID().toString())
+                .claim("username", "expired_user")
+                .claim("roles", List.of("ROLE_ADMIN"))
+                .claim("permissions", List.of("USER_READ"))
+                .issuedAt(Date.from(Instant.now().minus(2, ChronoUnit.HOURS)))
+                .expiration(Date.from(Instant.now().minus(1, ChronoUnit.HOURS)))
+                .signWith(key)
+                .compact();
+
+        mockMvc.perform(get("/api/v1/users")
+                        .header("Authorization", "Bearer " + expiredToken)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("UNAUTHORIZED")));
     }
 }

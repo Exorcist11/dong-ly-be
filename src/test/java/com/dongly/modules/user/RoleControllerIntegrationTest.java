@@ -305,6 +305,19 @@ class RoleControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("PUT /api/v1/roles/{id}: Sửa đổi vai trò hệ thống bị từ chối 403 Forbidden")
+    void updateRole_systemRole_returns403() throws Exception {
+        UpdateRoleRequest request = new UpdateRoleRequest("Tên Admin mới", "Mô tả mới");
+
+        mockMvc.perform(put("/api/v1/roles/" + systemAdminRole.getId())
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", is("SYSTEM_ROLE_PROTECTED")));
+    }
+
+    @Test
     @DisplayName("PATCH /api/v1/roles/{id}/status: Vô hiệu hóa vai trò hệ thống bị từ chối 403")
     void updateRoleStatus_systemRole_returns403() throws Exception {
         UpdateRoleStatusRequest request = new UpdateRoleStatusRequest(RoleStatus.INACTIVE);

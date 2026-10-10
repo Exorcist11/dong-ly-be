@@ -156,6 +156,13 @@ public class RoleService {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vai trò", id));
 
+        if (role.isSystem() || "ADMIN".equalsIgnoreCase(role.getCode())) {
+            throw new AppException(
+                    ErrorCode.SYSTEM_ROLE_PROTECTED,
+                    "Không được phép chỉnh sửa vai trò hệ thống '" + role.getCode() + "'"
+            );
+        }
+
         role.setName(request.name().trim());
         role.setDescription(request.description() != null ? request.description().trim() : null);
 

@@ -138,6 +138,16 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Người dùng", id));
 
+        // Bảo vệ tài khoản quản trị viên: Người không phải ADMIN không được chỉnh sửa tài khoản ADMIN
+        if (user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getCode()))) {
+            if (currentUser != null && !currentUser.isAdmin()) {
+                throw new AppException(
+                        ErrorCode.ACCESS_DENIED,
+                        "Bạn không có quyền chỉnh sửa thông tin của tài khoản quản trị viên"
+                );
+            }
+        }
+
         String email = request.email().trim().toLowerCase();
         if (userRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
             throw new AppException(
@@ -176,6 +186,28 @@ public class UserService {
                     ErrorCode.BUSINESS_RULE_VIOLATION,
                     "Không thể tự vô hiệu hóa hoặc khóa tài khoản của chính mình"
             );
+        }
+
+        // Không cho phép người không phải ADMIN thay đổi trạng thái của tài khoản ADMIN
+        if (user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getCode()))) {
+            if (currentUser != null && !currentUser.isAdmin()) {
+                throw new AppException(
+                        ErrorCode.ACCESS_DENIED,
+                        "Bạn không có quyền thay đổi trạng thái của tài khoản quản trị viên"
+                );
+            }
+        }
+
+        // Không cho phép vô hiệu hóa hoặc khóa tài khoản quản trị viên duy nhất
+        if (user.getRoles() != null && user.getRoles().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getCode()))
+                && request.status() != UserStatus.ACTIVE) {
+            Role adminRole = roleRepository.findByCode("ADMIN").orElse(null);
+            if (adminRole != null && roleRepository.countUsersByRoleId(adminRole.getId()) <= 1) {
+                throw new AppException(
+                        ErrorCode.BUSINESS_RULE_VIOLATION,
+                        "Không thể vô hiệu hóa hoặc khóa tài khoản quản trị viên duy nhất trong hệ thống"
+                );
+            }
         }
 
         user.setStatus(request.status());
@@ -231,6 +263,9 @@ public class UserService {
 
         user.setRoles(validatedRoles);
         user.setUpdatedBy(currentUser != null ? currentUser.username() : "SYSTEM");
+
+        // Thu hồi toàn bộ Refresh Token của user khi vai trò bị thay đổi để ép buộc làm mới session an toàn
+        refreshTokenRepository.revokeAllActiveTokensByUserId(id);
 
         User savedUser = userRepository.save(user);
         log.info("Cập nhật vai trò cho người dùng thành công: userId={}, rolesCount={}, updater={}",
