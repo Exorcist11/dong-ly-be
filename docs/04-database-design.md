@@ -1,6 +1,6 @@
-# Thiết Kế Cơ Sở Dữ Liệu: Authentication & User Management (Database Design)
+# Thiết Kế Cơ Sở Dữ Liệu: Authentication, RBAC & User Management (Database Design)
 
-Tài liệu này đặc tả chi tiết lược đồ cơ sở dữ liệu PostgreSQL cho Module **Authentication & User Management (BE-001)** của Hệ thống Quản lý Vận tải & Đặt vé Đông Lý.
+Tài liệu này đặc tả chi tiết lược đồ cơ sở dữ liệu PostgreSQL cho Module **Authentication, RBAC & User Management (BE-001)** của Hệ thống Quản lý Vận tải & Đặt vé Đông Lý.
 
 ---
 
@@ -33,7 +33,7 @@ CREATE INDEX idx_users_status ON users (status);
 ```
 
 ### 1.2. Bảng `roles` (Vai trò)
-Định nghĩa danh mục các vai trò trong mô hình RBAC.
+Định nghĩa danh mục các vai trò trong mô hình RBAC (hỗ trợ cờ hệ thống và trạng thái hoạt động).
 
 ```sql
 CREATE TABLE IF NOT EXISTS roles (
@@ -41,16 +41,20 @@ CREATE TABLE IF NOT EXISTS roles (
     code VARCHAR(50) NOT NULL,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_roles_code UNIQUE (code)
+    CONSTRAINT uq_roles_code UNIQUE (code),
+    CONSTRAINT chk_roles_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 
 CREATE INDEX idx_roles_code ON roles (code);
+CREATE INDEX idx_roles_status ON roles (status);
 ```
 
 ### 1.3. Bảng `permissions` (Quyền hạn hạt nhân)
-Định nghĩa các quyền hạn cụ thể trong hệ thống.
+Định nghĩa các quyền hạn cụ thể trong hệ thống, nhóm theo phân hệ và hành động nghiệp vụ.
 
 ```sql
 CREATE TABLE IF NOT EXISTS permissions (
@@ -58,12 +62,15 @@ CREATE TABLE IF NOT EXISTS permissions (
     code VARCHAR(50) NOT NULL,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(255),
+    module VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+    action VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_permissions_code UNIQUE (code)
 );
 
 CREATE INDEX idx_permissions_code ON permissions (code);
+CREATE INDEX idx_permissions_module ON permissions (module);
 ```
 
 ### 1.4. Bảng `user_roles` (Liên kết N-N Người dùng ↔ Vai trò)
@@ -126,4 +133,10 @@ CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens (token_hash);
    * Roles: `ADMIN`, `OPERATOR`, `STAFF`, `CUSTOMER`.
    * Permissions: `USER_READ`, `USER_CREATE`, `USER_UPDATE`, `USER_DELETE`.
    * Gán quyền `USER_*` cho vai trò `ADMIN`.
-   * Khởi tạo tài khoản quản trị viên mặc định `admin` / `admin@dongly.vn` (mật khẩu mã hóa BCrypt cost 12).
+   * Khởi tạo tài khoản quản trị viên mặc định `admin` / `admin@dongly.vn`.
+4. `V4__enhance_rbac_tables_and_seed_permissions.sql`:
+   * Nâng cấp cấu trúc bảng `roles`: thêm `status` (`ACTIVE`/`INACTIVE`) và `is_system` (`BOOLEAN`). Đánh dấu 4 role mặc định là system role (`is_system = TRUE`).
+   * Nâng cấp cấu trúc bảng `permissions`: thêm `module` và `action`.
+   * Seed bổ sung các quyền quản trị RBAC (`ROLE_READ`, `ROLE_CREATE`, `ROLE_UPDATE`, `ROLE_DELETE`, `ROLE_ASSIGN`, `PERMISSION_READ`).
+   * Seed sẵn sàng các quyền phân hệ vận tải (`ROUTE_*`, `FLEET_*`, `TRIP_*`, `BOOKING_*`, `TICKET_*`).
+   * Gán toàn bộ quyền hạn mới cho vai trò `ADMIN` một cách an toàn (idempotent).

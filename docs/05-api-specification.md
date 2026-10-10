@@ -1,6 +1,6 @@
-# Đặc Tả API: Authentication & User Management (API Specification)
+# Đặc Tả API: Authentication, RBAC & User Management (API Specification)
 
-Tài liệu này quy định chi tiết hợp đồng giao tiếp RESTful API của Module **Authentication & User Management (BE-001)**.
+Tài liệu này quy định chi tiết hợp đồng giao tiếp RESTful API của Module **Authentication, RBAC & User Management (BE-001)**.
 
 ---
 
@@ -27,115 +27,188 @@ Mọi phản hồi lỗi tuân thủ mẫu:
 }
 ```
 
----
-
-## 2. Nhóm Endpoint Xác Thực (`/api/v1/auth`)
-
-### 2.1. Đăng nhập hệ thống (Login)
-* **Endpoint**: `POST /api/v1/auth/login`
-* **Quyền hạn**: **PUBLIC**
-* **Mô tả**: Xác thực tài khoản và cấp phát bộ token. **Chỉ trả về Token tương ứng, không đính kèm thông tin user**.
-* **Request Body**:
-```json
-{
-  "username": "admin",
-  "password": "Password@123"
-}
-```
-* **Response Body (200 OK)**:
+Phản hồi phân trang tuân thủ mẫu:
 ```json
 {
   "success": true,
-  "message": "Đăng nhập thành công",
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "4a7b3c2d1e-8f9a-4b5c-9d8e-7f6a5b4c3d2e",
-    "tokenType": "Bearer",
-    "expiresIn": 1800
+  "message": "Lấy danh sách thành công",
+  "data": [ ... ],
+  "pagination": {
+    "page": 0,
+    "size": 20,
+    "totalElements": 4,
+    "totalPages": 1,
+    "first": true,
+    "last": true
   },
-  "timestamp": "2026-10-09T00:00:00Z"
-}
-```
-
-### 2.2. Lấy thông tin người dùng hiện tại (Me Profile)
-* **Endpoint**: `GET /api/v1/auth/me`
-* **Quyền hạn**: **AUTHENTICATED** (Header: `Authorization: Bearer <accessToken>`)
-* **Mô tả**: Sử dụng Access Token để lấy hồ sơ chi tiết, vai trò và toàn bộ quyền hạn được cấp.
-* **Response Body (200 OK)**:
-```json
-{
-  "success": true,
-  "message": "Lấy thông tin người dùng thành công",
-  "data": {
-    "id": "b1b11111-1111-1111-1111-111111111111",
-    "username": "admin",
-    "email": "admin@dongly.vn",
-    "fullName": "Quản trị viên Hệ thống Đông Lý",
-    "phone": "0987654321",
-    "status": "ACTIVE",
-    "roles": ["ADMIN"],
-    "permissions": ["USER_READ", "USER_CREATE", "USER_UPDATE", "USER_DELETE"],
-    "createdAt": "2026-10-09T00:00:00Z"
-  },
-  "timestamp": "2026-10-09T00:00:00Z"
-}
-```
-
-### 2.3. Làm mới Access Token (Token Refresh)
-* **Endpoint**: `POST /api/v1/auth/refresh`
-* **Quyền hạn**: **PUBLIC**
-* **Mô tả**: Sử dụng Refresh Token để lấy cặp Access Token & Refresh Token mới (Xoay vòng token - Token Rotation).
-* **Request Body**:
-```json
-{
-  "refreshToken": "4a7b3c2d1e-8f9a-4b5c-9d8e-7f6a5b4c3d2e"
-}
-```
-* **Response Body (200 OK)**:
-```json
-{
-  "success": true,
-  "message": "Làm mới mã thông báo thành công",
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "9f8e7d6c5b-4a3b-2c1d-0e9f-8a7b6c5d4e3f",
-    "tokenType": "Bearer",
-    "expiresIn": 1800
-  },
-  "timestamp": "2026-10-09T00:00:00Z"
-}
-```
-
-### 2.4. Đăng xuất tài khoản (Logout)
-* **Endpoint**: `POST /api/v1/auth/logout`
-* **Quyền hạn**: **AUTHENTICATED** (Bắt buộc Header `Authorization: Bearer <accessToken>`)
-* **Mô tả**: Thu hồi và vô hiệu hóa Refresh Token của phiên làm việc hiện tại. Hệ thống kiểm tra quyền sở hữu để đảm bảo chỉ chính chủ tài khoản mới có thể đăng xuất phiên của mình.
-* **Headers**:
-  * `Authorization`: `Bearer <accessToken>`
-* **Request Body**:
-```json
-{
-  "refreshToken": "9f8e7d6c5b-4a3b-2c1d-0e9f-8a7b6c5d4e3f"
-}
-```
-* **Response Body (200 OK)**:
-```json
-{
-  "success": true,
-  "message": "Đăng xuất thành công",
-  "data": null,
   "timestamp": "2026-10-09T00:00:00Z"
 }
 ```
 
 ---
 
-## 3. Nhóm Endpoint Quản Lý Người Dùng (`/api/v1/users`)
+## 2. Nhóm Endpoint Xác Thực (`/api/v1/auth`)
+
+| Method | Endpoint | Quyền hạn yêu cầu | Mô tả |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/login` | **PUBLIC** | Xác thực tài khoản và cấp phát bộ token (Access & Refresh Token). |
+| `GET` | `/api/v1/auth/me` | **AUTHENTICATED** | Lấy thông tin tài khoản hiện tại kèm roles và permissions. |
+| `POST` | `/api/v1/auth/refresh` | **PUBLIC** | Xoay vòng Refresh Token (Token Rotation) để lấy token mới. |
+| `POST` | `/api/v1/auth/logout` | **AUTHENTICATED** | Đăng xuất phiên làm việc và thu hồi Refresh Token hiện tại. |
+
+---
+
+## 3. Nhóm Endpoint Quản Lý Danh Mục Quyền Hạn (`/api/v1/permissions`)
+
+### 3.1. Lấy danh mục quyền hạn hệ thống (Permission Catalog)
+* **Endpoint**: `GET /api/v1/permissions`
+* **Quyền hạn**: `hasAuthority('PERMISSION_READ') or hasAuthority('ROLE_READ')`
+* **Query Parameters**:
+  * `module` (tùy chọn): Lọc theo module (`USER`, `ROLE`, `ROUTE`, `FLEET`,...).
+* **Response Body (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Lấy danh mục quyền hạn thành công",
+  "data": {
+    "total": 19,
+    "modules": [
+      {
+        "module": "USER",
+        "moduleName": "Quản lý người dùng",
+        "permissions": [
+          {
+            "id": "e5b8...-...",
+            "code": "USER_READ",
+            "name": "Xem người dùng",
+            "description": "Quyền tra cứu danh sách và xem chi tiết người dùng",
+            "module": "USER",
+            "action": "READ"
+          }
+        ]
+      }
+    ]
+  },
+  "timestamp": "2026-10-10T00:00:00Z"
+}
+```
+
+---
+
+## 4. Nhóm Endpoint Quản Trị Vai Trò & Phân Quyền (`/api/v1/roles`)
+
+### 4.1. Lấy danh sách vai trò phân trang & tìm kiếm
+* **Endpoint**: `GET /api/v1/roles`
+* **Quyền hạn**: `hasAuthority('ROLE_READ')`
+* **Query Parameters**: `page` (default 0), `size` (default 20, max 100), `sort` (default `createdAt,desc`), `search` (tìm theo code hoặc name), `status` (`ACTIVE`, `INACTIVE`).
+* **Response Body (200 OK)**: Trả về danh sách theo chuẩn `PageResponse<RoleResponse>`.
+
+### 4.2. Lấy chi tiết vai trò kèm toàn bộ quyền hạn
+* **Endpoint**: `GET /api/v1/roles/{id}`
+* **Quyền hạn**: `hasAuthority('ROLE_READ')`
+* **Response Body (200 OK)**: Trả về `RoleDetailResponse` gồm thông tin vai trò và mảng `permissions`.
+
+### 4.3. Tạo mới vai trò tùy chỉnh
+* **Endpoint**: `POST /api/v1/roles`
+* **Quyền hạn**: `hasAuthority('ROLE_CREATE')`
+* **Request Body**:
+```json
+{
+  "code": "DISPATCHER",
+  "name": "Điều hành bến bãi",
+  "description": "Nhân viên điều phối xe tại bến",
+  "permissionCodes": ["TRIP_READ", "TRIP_MANAGE"]
+}
+```
+* **Response Body (201 Created)**: Trả về `RoleDetailResponse`.
+
+### 4.4. Cập nhật tên và mô tả vai trò
+* **Endpoint**: `PUT /api/v1/roles/{id}`
+* **Quyền hạn**: `hasAuthority('ROLE_UPDATE')`
+* **Ràng buộc**: Chặn chỉnh sửa vai trò hệ thống (`is_system = true` hoặc `ADMIN`) với mã lỗi 403 `SYSTEM_ROLE_PROTECTED`.
+* **Request Body**:
+```json
+{
+  "name": "Điều hành bến xe trung tâm",
+  "description": "Cập nhật mô tả điều hành xe"
+}
+```
+
+### 4.5. Cập nhật trạng thái vai trò
+* **Endpoint**: `PATCH /api/v1/roles/{id}/status`
+* **Quyền hạn**: `hasAuthority('ROLE_UPDATE')`
+* **Ràng buộc**:
+  * Không cho phép vô hiệu hóa vai trò hệ thống (`SYSTEM_ROLE_PROTECTED`).
+  * Không cho phép vô hiệu hóa vai trò đang được gán cho người dùng (409 `ROLE_IN_USE`).
+* **Request Body**:
+```json
+{
+  "status": "INACTIVE"
+}
+```
+
+### 4.6. Xem danh sách quyền của vai trò
+* **Endpoint**: `GET /api/v1/roles/{id}/permissions`
+* **Quyền hạn**: `hasAuthority('ROLE_READ')`
+* **Response Body (200 OK)**: Mảng danh sách `List<PermissionResponse>`.
+
+### 4.7. Gán toàn bộ danh mục quyền cho vai trò
+* **Endpoint**: `PUT /api/v1/roles/{id}/permissions`
+* **Quyền hạn**: `hasAuthority('ROLE_ASSIGN')`
+* **Ràng buộc**:
+  * Thực thi trong một `@Transactional` duy nhất.
+  * Toàn bộ mã quyền phải tồn tại trong database (nếu có mã không tồn tại, trả về 404 `RESOURCE_NOT_FOUND` và rollback hoàn toàn).
+* **Request Body**:
+```json
+{
+  "permissionCodes": ["ROUTE_READ", "TRIP_READ"]
+}
+```
+
+### 4.8. Xóa vai trò tùy chỉnh
+* **Endpoint**: `DELETE /api/v1/roles/{id}`
+* **Quyền hạn**: `hasAuthority('ROLE_DELETE')`
+* **Ràng buộc**:
+  * Không được xóa vai trò hệ thống (403 `SYSTEM_ROLE_PROTECTED`).
+  * Không được xóa vai trò đang được gán cho người dùng (409 `ROLE_IN_USE`).
+
+---
+
+## 5. Nhóm Endpoint Quản Lý Người Dùng & Vai Trò Người Dùng (`/api/v1/users`)
 
 | Method | Endpoint | Quyền hạn yêu cầu | Mô tả |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/users` | `hasAuthority('USER_READ')` | Lấy danh sách người dùng phân trang |
-| `GET` | `/api/v1/users/{id}` | `hasAuthority('USER_READ')` hoặc Self | Lấy chi tiết người dùng theo ID (Chống IDOR) |
-| `POST` | `/api/v1/users` | `hasAuthority('USER_CREATE')` | Tạo người dùng mới và gán vai trò |
-| `PUT` | `/api/v1/users/{id}` | `hasAuthority('USER_UPDATE')` | Cập nhật hồ sơ người dùng |
-| `PATCH` | `/api/v1/users/{id}/status`| `hasAuthority('USER_UPDATE')` | Thay đổi trạng thái (`ACTIVE`, `INACTIVE`, `LOCKED`) |
+| `GET` | `/api/v1/users/{id}` | `isAuthenticated()` | Lấy chi tiết người dùng (Yêu cầu `USER_READ` hoặc chính chủ - Chống IDOR) |
+| `POST` | `/api/v1/users` | `hasAuthority('USER_CREATE')` | Tạo người dùng mới và gán danh sách `roleCodes` ban đầu. Chặn gán `ADMIN` nếu người gọi không phải `ADMIN`. |
+| `PUT` | `/api/v1/users/{id}` | `hasAuthority('USER_UPDATE')` | Cập nhật hồ sơ và `roleCodes`. Chặn non-admin sửa profile của `ADMIN` hoặc gán role `ADMIN`. |
+| `PATCH` | `/api/v1/users/{id}/status` | `hasAuthority('USER_UPDATE')` | Cập nhật trạng thái (`ACTIVE`, `INACTIVE`, `LOCKED`). Chặn khóa tài khoản `ADMIN` bởi non-admin và chặn khóa `ADMIN` cuối cùng. Thu hồi toàn bộ refresh token khi bị khóa. |
+| `GET` | `/api/v1/users/{id}/roles` | `isAuthenticated()` | Lấy danh sách các vai trò của người dùng (Yêu cầu `USER_READ`, `ROLE_READ` hoặc chính chủ). |
+| `PUT` | `/api/v1/users/{id}/roles` | `hasAuthority('ROLE_ASSIGN') or hasRole('ADMIN')` | Cập nhật danh sách vai trò của người dùng trong một transaction. Chặn tự nâng quyền, validate role `ACTIVE` và tự động thu hồi refresh token của user. |
+
+### 5.1. Cập nhật danh sách vai trò của người dùng (`PUT /api/v1/users/{id}/roles`)
+* **Request Body**:
+```json
+{
+  "roleCodes": ["OPERATOR", "STAFF"]
+}
+```
+* **Response Body (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Cập nhật danh sách vai trò của người dùng thành công",
+  "data": [
+    {
+      "id": "c1c11111-1111-1111-1111-111111111111",
+      "code": "OPERATOR",
+      "name": "Nhân viên điều hành",
+      "description": "Quản lý lịch trình và phân bổ chuyến xe",
+      "status": "ACTIVE",
+      "isSystem": true,
+      "createdAt": "2026-10-09T00:00:00Z"
+    }
+  ],
+  "timestamp": "2026-10-10T00:00:00Z"
+}
+```
