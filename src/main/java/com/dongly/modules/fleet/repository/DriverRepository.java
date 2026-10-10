@@ -35,12 +35,15 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
 
     @Query("""
         SELECT d FROM Driver d
-        WHERE (:keyword IS NULL OR LOWER(d.code) LIKE LOWER(CONCAT('%', :keyword, '%'))
-               OR LOWER(d.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
-               OR LOWER(d.phone) LIKE LOWER(CONCAT('%', :keyword, '%'))
-               OR LOWER(d.licenseNumber) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        WHERE (
+            :keyword IS NULL OR :keyword = ''
+            OR LOWER(d.code) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(d.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(d.phone) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(d.licenseNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        )
           AND (:status IS NULL OR d.status = :status)
-          AND (:licenseClass IS NULL OR d.licenseClass = :licenseClass)
+          AND (:licenseClass IS NULL OR :licenseClass = '' OR d.licenseClass = :licenseClass)
     """)
     Page<Driver> searchDrivers(
             @Param("keyword") String keyword,

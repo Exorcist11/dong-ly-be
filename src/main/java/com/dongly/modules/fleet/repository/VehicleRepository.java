@@ -24,9 +24,12 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
     @Query("""
         SELECT v FROM Vehicle v
-        WHERE (:keyword IS NULL OR LOWER(v.plateNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
-               OR LOWER(v.brand) LIKE LOWER(CONCAT('%', :keyword, '%'))
-               OR LOWER(v.model) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        WHERE (
+            :keyword IS NULL OR :keyword = ''
+            OR LOWER(v.plateNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(v.brand) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(v.model) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        )
           AND (:vehicleType IS NULL OR v.vehicleType = :vehicleType)
           AND (:status IS NULL OR v.status = :status)
     """)
