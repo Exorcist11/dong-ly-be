@@ -23,7 +23,9 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tài nguyên yêu cầu"),
     RESOURCE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Tài nguyên đã tồn tại trong hệ thống"),
 
-    // Lỗi quy tắc nghiệp vụ (422)
+    // Lỗi quy tắc nghiệp vụ & xung đột RBAC (409, 422)
+    ROLE_IN_USE(HttpStatus.CONFLICT, "Vai trò đang được gán cho người dùng và không thể xóa hoặc vô hiệu hóa"),
+    SYSTEM_ROLE_PROTECTED(HttpStatus.FORBIDDEN, "Không được phép chỉnh sửa hoặc xóa vai trò hệ thống"),
     BUSINESS_RULE_VIOLATION(HttpStatus.UNPROCESSABLE_ENTITY, "Vi phạm quy tắc nghiệp vụ"),
 
     // Lỗi hệ thống nội bộ (500)

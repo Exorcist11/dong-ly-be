@@ -75,6 +75,7 @@ public final class UserMapper {
         Set<String> roleCodes = user.getRoles() != null
                 ? user.getRoles().stream()
                         .filter(Objects::nonNull)
+                        .filter(Role::isActive)
                         .map(Role::getCode)
                         .collect(Collectors.toSet())
                 : Collections.emptySet();
@@ -82,6 +83,7 @@ public final class UserMapper {
         Set<String> permissionCodes = user.getRoles() != null
                 ? user.getRoles().stream()
                         .filter(Objects::nonNull)
+                        .filter(Role::isActive)
                         .map(Role::getPermissions)
                         .filter(Objects::nonNull)
                         .flatMap(Set::stream)

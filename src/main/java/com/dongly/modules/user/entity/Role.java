@@ -3,6 +3,8 @@ package com.dongly.modules.user.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -53,6 +55,15 @@ public class Role {
     @Column(name = "description", length = 255)
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20, nullable = false)
+    @Builder.Default
+    private RoleStatus status = RoleStatus.ACTIVE;
+
+    @Column(name = "is_system", nullable = false)
+    @Builder.Default
+    private boolean isSystem = false;
+
     @Builder.Default
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -69,6 +80,10 @@ public class Role {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public boolean isActive() {
+        return RoleStatus.ACTIVE.equals(this.status);
+    }
 
     @Override
     public boolean equals(Object o) {

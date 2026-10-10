@@ -279,4 +279,35 @@ class AuthServiceTest {
         assertThat(profile.roles()).contains("ADMIN");
         assertThat(profile.permissions()).contains("USER_READ");
     }
+
+    @Test
+    @DisplayName("Vai trò bị vô hiệu hóa (INACTIVE) sẽ không được tính quyền hiệu lực vào profile")
+    void getCurrentUserProfile_inactiveRole_excludedFromProfile() {
+        Role inactiveRole = Role.builder()
+                .id(UUID.randomUUID())
+                .code("INACTIVE_OPERATOR")
+                .name("Điều hành bị vô hiệu hóa")
+                .status(com.dongly.modules.user.entity.RoleStatus.INACTIVE)
+                .permissions(Set.of(Permission.builder().id(UUID.randomUUID()).code("TRIP_MANAGE").build()))
+                .build();
+
+        sampleUser.setRoles(Set.of(adminRole, inactiveRole));
+
+        CurrentUser currentUser = new CurrentUser(
+                sampleUser.getId(),
+                sampleUser.getUsername(),
+                sampleUser.getEmail(),
+                Set.of("ADMIN"),
+                Set.of("USER_READ")
+        );
+
+        when(userRepository.findById(sampleUser.getId())).thenReturn(Optional.of(sampleUser));
+
+        UserProfileResponse profile = authService.getCurrentUserProfile(currentUser);
+
+        assertThat(profile.roles()).contains("ADMIN");
+        assertThat(profile.roles()).doesNotContain("INACTIVE_OPERATOR");
+        assertThat(profile.permissions()).contains("USER_READ");
+        assertThat(profile.permissions()).doesNotContain("TRIP_MANAGE");
+    }
 }

@@ -47,6 +47,13 @@ public class Permission {
     @Column(name = "description", length = 255)
     private String description;
 
+    @Column(name = "module", length = 50, nullable = false)
+    @Builder.Default
+    private String module = "SYSTEM";
+
+    @Column(name = "action", length = 50)
+    private String action;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

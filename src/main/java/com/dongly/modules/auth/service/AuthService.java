@@ -238,6 +238,7 @@ public class AuthService {
         }
         return user.getRoles().stream()
                 .filter(Objects::nonNull)
+                .filter(Role::isActive)
                 .map(Role::getCode)
                 .collect(Collectors.toSet());
     }
@@ -248,6 +249,7 @@ public class AuthService {
         }
         return user.getRoles().stream()
                 .filter(Objects::nonNull)
+                .filter(Role::isActive)
                 .map(Role::getPermissions)
                 .filter(Objects::nonNull)
                 .flatMap(Set::stream)
