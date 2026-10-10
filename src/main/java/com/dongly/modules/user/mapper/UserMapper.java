@@ -1,6 +1,9 @@
 package com.dongly.modules.user.mapper;
 
 import com.dongly.modules.auth.dto.UserProfileResponse;
+import com.dongly.modules.user.dto.PermissionResponse;
+import com.dongly.modules.user.dto.RoleDetailResponse;
+import com.dongly.modules.user.dto.RoleResponse;
 import com.dongly.modules.user.dto.UserResponse;
 import com.dongly.modules.user.dto.UserSummaryResponse;
 import com.dongly.modules.user.entity.Permission;
@@ -105,17 +108,59 @@ public final class UserMapper {
         );
     }
 
-    public static com.dongly.modules.user.dto.PermissionResponse toPermissionResponse(Permission permission) {
+    public static PermissionResponse toPermissionResponse(Permission permission) {
         if (permission == null) {
             return null;
         }
 
-        return new com.dongly.modules.user.dto.PermissionResponse(
+        return new PermissionResponse(
                 permission.getCode(),
                 permission.getName(),
                 permission.getDescription(),
                 permission.getModule(),
                 permission.getAction()
+        );
+    }
+
+    public static RoleResponse toRoleResponse(Role role) {
+        if (role == null) {
+            return null;
+        }
+        int permCount = role.getPermissions() != null ? role.getPermissions().size() : 0;
+        return new RoleResponse(
+                role.getId(),
+                role.getCode(),
+                role.getName(),
+                role.getDescription(),
+                role.getStatus(),
+                role.isSystem(),
+                permCount,
+                role.getCreatedAt(),
+                role.getUpdatedAt()
+        );
+    }
+
+    public static RoleDetailResponse toRoleDetailResponse(Role role) {
+        if (role == null) {
+            return null;
+        }
+        Set<PermissionResponse> perms = role.getPermissions() != null
+                ? role.getPermissions().stream()
+                        .filter(Objects::nonNull)
+                        .map(UserMapper::toPermissionResponse)
+                        .collect(Collectors.toSet())
+                : Collections.emptySet();
+
+        return new RoleDetailResponse(
+                role.getId(),
+                role.getCode(),
+                role.getName(),
+                role.getDescription(),
+                role.getStatus(),
+                role.isSystem(),
+                perms,
+                role.getCreatedAt(),
+                role.getUpdatedAt()
         );
     }
 }

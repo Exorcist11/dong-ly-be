@@ -81,6 +81,17 @@ public class Role {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    public Set<Permission> getPermissions() {
+        if (this.permissions == null) {
+            this.permissions = new HashSet<>();
+        }
+        return this.permissions;
+    }
+
+    public void setPermissions(Set<Permission> permissions) {
+        this.permissions = permissions != null ? new HashSet<>(permissions) : new HashSet<>();
+    }
+
     public boolean isActive() {
         return RoleStatus.ACTIVE.equals(this.status);
     }
