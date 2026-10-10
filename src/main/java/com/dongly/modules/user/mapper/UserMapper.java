@@ -104,4 +104,18 @@ public final class UserMapper {
                 user.getCreatedAt()
         );
     }
+
+    public static com.dongly.modules.user.dto.PermissionResponse toPermissionResponse(Permission permission) {
+        if (permission == null) {
+            return null;
+        }
+
+        return new com.dongly.modules.user.dto.PermissionResponse(
+                permission.getCode(),
+                permission.getName(),
+                permission.getDescription(),
+                permission.getModule(),
+                permission.getAction()
+        );
+    }
 }
