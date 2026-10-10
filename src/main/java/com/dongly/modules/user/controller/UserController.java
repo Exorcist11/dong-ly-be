@@ -6,6 +6,8 @@ import com.dongly.common.exception.AppException;
 import com.dongly.common.exception.ErrorCode;
 import com.dongly.modules.user.dto.CreateUserRequest;
 import com.dongly.modules.user.dto.UpdateUserRequest;
+import com.dongly.modules.user.dto.RoleResponse;
+import com.dongly.modules.user.dto.UpdateUserRolesRequest;
 import com.dongly.modules.user.dto.UpdateUserStatusRequest;
 import com.dongly.modules.user.dto.UserResponse;
 import com.dongly.modules.user.service.UserService;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -121,5 +124,30 @@ public class UserController {
 
         UserResponse updatedUser = userService.updateUserStatus(id, request, currentUser);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái người dùng thành công", updatedUser));
+    }
+
+    @Operation(summary = "Lấy danh sách vai trò của người dùng (Yêu cầu quyền USER_READ hoặc ROLE_READ hoặc chính chủ)")
+    @GetMapping("/{id}/roles")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<RoleResponse>>> getUserRoles(@PathVariable UUID id) {
+        CurrentUser currentUser = SecurityUtils.getCurrentUser()
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED, "Yêu cầu xác thực tài khoản"));
+
+        List<RoleResponse> roles = userService.getUserRoles(id, currentUser);
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách vai trò của người dùng thành công", roles));
+    }
+
+    @Operation(summary = "Cập nhật danh sách vai trò của người dùng (Yêu cầu quyền ROLE_ASSIGN)")
+    @PutMapping("/{id}/roles")
+    @PreAuthorize("hasAuthority('ROLE_ASSIGN') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<RoleResponse>>> updateUserRoles(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateUserRolesRequest request
+    ) {
+        CurrentUser currentUser = SecurityUtils.getCurrentUser()
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED, "Yêu cầu xác thực tài khoản"));
+
+        List<RoleResponse> updatedRoles = userService.updateUserRoles(id, request, currentUser);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật danh sách vai trò của người dùng thành công", updatedRoles));
     }
 }
