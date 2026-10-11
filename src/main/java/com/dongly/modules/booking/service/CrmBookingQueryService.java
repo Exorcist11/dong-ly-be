@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -48,15 +49,18 @@ public class CrmBookingQueryService {
     private final TripRepository tripRepository;
     private final VehicleSeatRepository vehicleSeatRepository;
     private final RouteStopRepository routeStopRepository;
+    private final com.dongly.modules.booking.repository.BookingItemRepository bookingItemRepository;
 
     public CrmBookingQueryService(
             TripRepository tripRepository,
             VehicleSeatRepository vehicleSeatRepository,
-            RouteStopRepository routeStopRepository
+            RouteStopRepository routeStopRepository,
+            com.dongly.modules.booking.repository.BookingItemRepository bookingItemRepository
     ) {
         this.tripRepository = tripRepository;
         this.vehicleSeatRepository = vehicleSeatRepository;
         this.routeStopRepository = routeStopRepository;
+        this.bookingItemRepository = bookingItemRepository;
     }
 
     /**
@@ -67,6 +71,7 @@ public class CrmBookingQueryService {
         LocalDate date = criteria.getDepartureDate();
         OffsetDateTime startOfDay = date.atStartOfDay().atOffset(ZoneOffset.ofHours(7));
         OffsetDateTime endOfDay = date.atTime(LocalTime.MAX).atOffset(ZoneOffset.ofHours(7));
+        OffsetDateTime now = OffsetDateTime.now();
 
         Sort sort = Sort.by(Sort.Direction.ASC, "departureTime");
         if (criteria.getSort() != null && criteria.getSort().contains(",")) {
@@ -96,9 +101,19 @@ public class CrmBookingQueryService {
             int totalSeats = (trip.getVehicle() != null && trip.getVehicle().getTotalSeats() != null)
                     ? trip.getVehicle().getTotalSeats() : 0;
 
-            // TODO (Mốc 3): Khi bảng booking_items được tích hợp, lấy số ghế HELD và BOOKED từ booking_items
+            List<com.dongly.modules.booking.entity.BookingItem> activeItems =
+                    bookingItemRepository.findActiveItemsByTrip(trip.getId(), now);
+
             int heldSeats = 0;
             int bookedSeats = 0;
+            for (com.dongly.modules.booking.entity.BookingItem bi : activeItems) {
+                if (bi.getStatus() == com.dongly.modules.booking.entity.BookingItemStatus.CONFIRMED) {
+                    bookedSeats++;
+                } else if (bi.getStatus() == com.dongly.modules.booking.entity.BookingItemStatus.HELD) {
+                    heldSeats++;
+                }
+            }
+
             int availableSeats = Math.max(0, totalSeats - heldSeats - bookedSeats);
 
             return CrmTripSearchResultResponse.fromTripAndSeatCounts(
@@ -120,6 +135,8 @@ public class CrmBookingQueryService {
             throw new ResourceNotFoundException("phương tiện gắn với chuyến xe", tripId);
         }
 
+        OffsetDateTime now = OffsetDateTime.now();
+
         // 1. Lấy danh sách ghế vật lý của phương tiện (sắp xếp floor -> row -> column)
         List<VehicleSeat> physicalSeats = vehicleSeatRepository
                 .findByVehicleIdOrderByFloorAscRowIndexAscColumnIndexAsc(vehicle.getId());
@@ -134,8 +151,13 @@ public class CrmBookingQueryService {
                 .map(CrmTripStopDto::fromEntity)
                 .toList();
 
-        // 3. Tính toán trạng thái chiếm chỗ từng ghế
-        // TODO (Mốc 3): Map thông tin booking_items với các ghế có status = 'CONFIRMED' hoặc (status = 'HELD' and hold_expires_at > now)
+        // 3. Lấy danh sách các booking_items đang active trên chuyến này (CONFIRMED hoặc HELD còn hạn)
+        List<com.dongly.modules.booking.entity.BookingItem> activeItems =
+                bookingItemRepository.findActiveItemsByTrip(tripId, now);
+
+        Map<UUID, com.dongly.modules.booking.entity.BookingItem> activeSeatMap = activeItems.stream()
+                .collect(Collectors.toMap(bi -> bi.getSeat().getId(), Function.identity(), (a, b) -> a));
+
         int availableCount = 0;
         int heldCount = 0;
         int bookedCount = 0;
@@ -152,8 +174,19 @@ public class CrmBookingQueryService {
 
             if (seat.getStatus() != SeatStatus.ACTIVE) {
                 occupancyStatus = SeatOccupancyStatus.LOCKED;
+            } else if (activeSeatMap.containsKey(seat.getId())) {
+                com.dongly.modules.booking.entity.BookingItem activeItem = activeSeatMap.get(seat.getId());
+                if (activeItem.getStatus() == com.dongly.modules.booking.entity.BookingItemStatus.CONFIRMED) {
+                    occupancyStatus = SeatOccupancyStatus.BOOKED;
+                    bookedCount++;
+                } else {
+                    occupancyStatus = SeatOccupancyStatus.HELD;
+                    heldCount++;
+                    if (activeItem.getBooking() != null) {
+                        holdExpiresAt = activeItem.getBooking().getHoldExpiresAt();
+                    }
+                }
             } else {
-                // Mặc định hiện tại khi chưa có đơn booking trong DB:
                 occupancyStatus = SeatOccupancyStatus.AVAILABLE;
                 availableCount++;
             }

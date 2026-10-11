@@ -221,6 +221,9 @@ Phản hồi phân trang tuân thủ mẫu:
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/crm/bookings/trips/search` | `hasAuthority('BOOKING_READ')` | Tìm kiếm chuyến xe mở bán theo ngày, tuyến đường, địa phương xuất phát/đích và từ khóa. Trả về thông tin chuyến, phương tiện, giá vé, số ghế khả dụng. |
 | `GET` | `/api/v1/crm/bookings/trips/{tripId}/seat-map` | `hasAuthority('BOOKING_READ')` | Lấy sơ đồ lưới ghế (tầng, hàng, cột), danh sách điểm đón/trả và trạng thái chiếm chỗ thời gian thực từng ghế (`AVAILABLE`, `HELD`, `BOOKED`, `LOCKED`). |
+| `POST` | `/api/v1/crm/bookings/hold` | `hasAuthority('BOOKING_CREATE')` | Giữ một hoặc nhiều ghế tạm thời (mặc định 10 phút). Chống race condition với Pessimistic Lock & DB Partial Unique Constraint. |
+| `POST` | `/api/v1/crm/bookings/{id}/confirm` | `hasAuthority('BOOKING_CREATE')` | Xác nhận booking giữ ghế thành công: kiểm tra thời hạn, quyền sở hữu, tính lại giá vé, ghi nhận thanh toán (`CASH`, `BANK_TRANSFER`, `VIETQR`) và phát hành vé điện tử. |
+| `POST` | `/api/v1/crm/bookings/{id}/cancel-hold` | `hasAuthority('BOOKING_CREATE')` | Hủy giữ ghế chủ động trước khi hết hạn bởi nhân viên sở hữu booking hoặc Quản trị viên. |
 
 ### 6.1. Tìm kiếm chuyến xe mở bán (`GET /api/v1/crm/bookings/trips/search`)
 * **Query Parameters**:
@@ -240,4 +243,90 @@ Phản hồi phân trang tuân thủ mẫu:
   * Bao gồm ma trận kích thước xe (`totalFloors`, `totalRows`, `totalColumns`).
   * Chi tiết danh sách ghế với cờ `isBookable`, `calculatedPrice` (`basePrice + seatExtraPrice`) và `occupancyStatus`.
   * Danh sách các điểm dừng đón/trả trên tuyến kèm phụ phí.
+
+### 6.3. Giữ ghế tạm thời (`POST /api/v1/crm/bookings/hold`)
+* **Quyền hạn**: `hasAuthority('BOOKING_CREATE')`
+* **Request Body**:
+```json
+{
+  "tripId": "d04a6011-8fcb-48c0-bc66-3d758f8e025f",
+  "seatIds": ["7a51833c-3dae-4cf4-a957-c584cb0255a4", "b3ec2e0d-13b7-4a6f-bd1a-b67ae2d1920c"],
+  "pickupStopId": "38b934b0-a548-4cb9-99fc-767a57a58a9e",
+  "dropoffStopId": "3f422e57-a9a3-4a1d-9e66-e04f05ba67bb",
+  "note": "Khách gọi hotline giữ chỗ"
+}
+```
+* **Response Body (201 Created)**:
+```json
+{
+  "success": true,
+  "message": "Giữ ghế thành công trong 10 phút",
+  "data": {
+    "bookingId": "c9287c80-e713-4074-b5a8-4c80cb5f7aa1",
+    "bookingCode": "DL-261011-ABCD",
+    "tripId": "d04a6011-8fcb-48c0-bc66-3d758f8e025f",
+    "tripCode": "TRP-HN-TH-01",
+    "status": "HOLDING",
+    "expiresAt": "2026-10-11T10:25:00Z",
+    "remainingSeconds": 600,
+    "heldSeats": [
+      {
+        "seatId": "7a51833c-3dae-4cf4-a957-c584cb0255a4",
+        "seatNumber": "A01",
+        "floor": 1,
+        "price": 200000.00
+      }
+    ],
+    "estimatedTotalPrice": 200000.00
+  },
+  "timestamp": "2026-10-11T10:15:00Z"
+}
+```
+* **Lỗi có thể trả về**:
+  * `409 Conflict` (`SEAT_ALREADY_RESERVED`): Một hoặc nhiều ghế đã có người giữ hoặc đặt thành công.
+  * `400 Bad Request` (`SEAT_NOT_AVAILABLE`): Ghế không thuộc chuyến xe hoặc bị khóa hỏng.
+
+### 6.4. Xác nhận booking và phát hành vé (`POST /api/v1/crm/bookings/{id}/confirm`)
+* **Path Variable**: `id` (UUID của Booking đang ở trạng thái `HOLDING`)
+* **Quyền hạn**: `hasAuthority('BOOKING_CREATE')`
+* **Ràng buộc**: Phải được xác nhận bởi chính nhân viên đã giữ chỗ (hoặc người có quyền Admin); Phải còn hạn giữ ghế; Tiền thanh toán `amount` phải khớp chính xác với `totalPrice` được tính lại ở Backend.
+* **Request Body**:
+```json
+{
+  "customerName": "Nguyễn Văn A",
+  "customerPhone": "0987654321",
+  "customerEmail": "nguyenvana@gmail.com",
+  "pickupStopId": "38b934b0-a548-4cb9-99fc-767a57a58a9e",
+  "dropoffStopId": "3f422e57-a9a3-4a1d-9e66-e04f05ba67bb",
+  "passengers": [
+    {
+      "seatId": "7a51833c-3dae-4cf4-a957-c584cb0255a4",
+      "passengerName": "Nguyễn Văn A",
+      "passengerPhone": "0987654321"
+    }
+  ],
+  "payment": {
+    "method": "CASH",
+    "amount": 200000.00,
+    "referenceCode": null,
+    "note": "Khách thanh toán tiền mặt tại quầy"
+  },
+  "note": "Đã thu đủ tiền"
+}
+```
+* **Response Body (200 OK)**: Chuẩn `ApiResponse<BookingResponse>`.
+  * Trả về thông tin chi tiết Booking, Customer, danh sách Ticket phát hành (`ticketCode`, `qrCode`, `seatNumber`), và Payment.
+* **Lỗi có thể trả về**:
+  * `410 Gone` (`SEAT_HOLD_EXPIRED`): Đã hết 10 phút giữ ghế, ghế đã được tự động giải phóng.
+  * `403 Forbidden` (`FORBIDDEN`): Nhân viên khác cố gắng xác nhận booking không phải do mình giữ.
+  * `400 Bad Request` (`INVALID_PAYMENT_AMOUNT`): Số tiền gửi lên không khớp với giá vé backend tính toán.
+  * `409 Conflict` (`BOOKING_ALREADY_CONFIRMED`): Booking đã được thanh toán và xác nhận trước đó (Idempotency).
+
+### 6.5. Hủy giữ ghế chủ động (`POST /api/v1/crm/bookings/{id}/cancel-hold`)
+* **Path Variable**: `id` (UUID của Booking đang ở trạng thái `HOLDING`)
+* **Quyền hạn**: `hasAuthority('BOOKING_CREATE')`
+* **Response Body (200 OK)**: Chuẩn `ApiResponse<Void>` thông báo giải phóng ghế thành công.
+* **Lỗi có thể trả về**:
+  * `403 Forbidden` (`FORBIDDEN`): Không có quyền hủy booking của người khác.
+  * `400 Bad Request` (`INVALID_STATUS_TRANSITION`): Booking không ở trạng thái `HOLDING`.
 

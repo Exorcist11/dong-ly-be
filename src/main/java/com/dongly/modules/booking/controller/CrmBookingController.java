@@ -26,9 +26,14 @@ import java.util.UUID;
 public class CrmBookingController {
 
     private final CrmBookingQueryService crmBookingQueryService;
+    private final com.dongly.modules.booking.service.CrmBookingTransactionService crmBookingTransactionService;
 
-    public CrmBookingController(CrmBookingQueryService crmBookingQueryService) {
+    public CrmBookingController(
+            CrmBookingQueryService crmBookingQueryService,
+            com.dongly.modules.booking.service.CrmBookingTransactionService crmBookingTransactionService
+    ) {
         this.crmBookingQueryService = crmBookingQueryService;
+        this.crmBookingTransactionService = crmBookingTransactionService;
     }
 
     @Operation(summary = "Tìm kiếm chuyến xe khả dụng cho CRM theo tuyến/ngày (Yêu cầu quyền BOOKING_READ)")
@@ -49,5 +54,38 @@ public class CrmBookingController {
     ) {
         CrmTripSeatMapResponse response = crmBookingQueryService.getTripSeatMap(tripId);
         return ResponseEntity.ok(ApiResponse.success("Lấy sơ đồ ghế chuyến xe thành công", response));
+    }
+
+    @Operation(summary = "Giữ tạm thời một hoặc nhiều ghế cho chuyến xe (Yêu cầu quyền BOOKING_MANAGE)")
+    @org.springframework.web.bind.annotation.PostMapping("/hold")
+    @PreAuthorize("hasAuthority('BOOKING_MANAGE')")
+    public ResponseEntity<ApiResponse<com.dongly.modules.booking.dto.HoldSeatsResponse>> holdSeats(
+            @Valid @org.springframework.web.bind.annotation.RequestBody com.dongly.modules.booking.dto.HoldSeatsRequest request
+    ) {
+        com.dongly.security.CurrentUser currentUser = com.dongly.security.SecurityUtils.getCurrentUser().orElse(null);
+        com.dongly.modules.booking.dto.HoldSeatsResponse response = crmBookingTransactionService.holdSeats(request, currentUser);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.success("Giữ ghế thành công trong 10 phút", response));
+    }
+
+    @Operation(summary = "Xác nhận đơn đặt vé và xuất vé sau khi thu tiền hợp lệ (Yêu cầu quyền BOOKING_MANAGE)")
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/confirm")
+    @PreAuthorize("hasAuthority('BOOKING_MANAGE')")
+    public ResponseEntity<ApiResponse<com.dongly.modules.booking.dto.BookingResponse>> confirmBooking(
+            @PathVariable UUID id,
+            @Valid @org.springframework.web.bind.annotation.RequestBody com.dongly.modules.booking.dto.ConfirmBookingRequest request
+    ) {
+        com.dongly.security.CurrentUser currentUser = com.dongly.security.SecurityUtils.getCurrentUser().orElse(null);
+        com.dongly.modules.booking.dto.BookingResponse response = crmBookingTransactionService.confirmBooking(id, request, currentUser);
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận đơn đặt vé thành công", response));
+    }
+
+    @Operation(summary = "Hủy giữ chỗ chủ động (Yêu cầu quyền BOOKING_MANAGE)")
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/cancel-hold")
+    @PreAuthorize("hasAuthority('BOOKING_MANAGE')")
+    public ResponseEntity<ApiResponse<Void>> cancelHold(@PathVariable UUID id) {
+        com.dongly.security.CurrentUser currentUser = com.dongly.security.SecurityUtils.getCurrentUser().orElse(null);
+        crmBookingTransactionService.cancelHold(id, currentUser);
+        return ResponseEntity.ok(ApiResponse.success("Đã hủy giữ chỗ thành công", null));
     }
 }

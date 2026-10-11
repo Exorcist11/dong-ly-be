@@ -28,6 +28,13 @@ public enum ErrorCode {
     SYSTEM_ROLE_PROTECTED(HttpStatus.FORBIDDEN, "Không được phép chỉnh sửa hoặc xóa vai trò hệ thống"),
     BUSINESS_RULE_VIOLATION(HttpStatus.UNPROCESSABLE_ENTITY, "Vi phạm quy tắc nghiệp vụ"),
 
+    // Lỗi nghiệp vụ CRM Booking & Giữ ghế (409, 410, 422)
+    SEAT_ALREADY_RESERVED(HttpStatus.CONFLICT, "Ghế đã được giữ hoặc đặt thành công bởi người khác"),
+    SEAT_HOLD_EXPIRED(HttpStatus.GONE, "Thời hạn giữ ghế 10 phút đã kết thúc, đơn đặt chỗ đã hết hiệu lực"),
+    SEAT_NOT_AVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "Ghế không khả dụng hoặc đang bảo trì"),
+    BOOKING_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "Đơn đặt vé đã hoàn tất xác nhận, không thể thao tác lại"),
+    INVALID_STATUS_TRANSITION(HttpStatus.UNPROCESSABLE_ENTITY, "Không thể chuyển trạng thái đơn hàng theo luồng này"),
+
     // Lỗi hệ thống nội bộ (500)
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra lỗi hệ thống nội bộ. Vui lòng thử lại sau.");
 

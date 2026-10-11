@@ -36,6 +36,9 @@ class CrmBookingControllerIntegrationTest {
     @MockBean
     private CrmBookingQueryService crmBookingQueryService;
 
+    @MockBean
+    private com.dongly.modules.booking.service.CrmBookingTransactionService crmBookingTransactionService;
+
     @Test
     @DisplayName("Tìm kiếm chuyến xe khả dụng thành công khi có quyền BOOKING_READ")
     @WithMockUser(authorities = {"BOOKING_READ"})
@@ -106,5 +109,58 @@ class CrmBookingControllerIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.tripCode").value("TRP-20261015-0400"))
                 .andExpect(jsonPath("$.data.availableSeats").value(18));
+    }
+
+    @Test
+    @DisplayName("Giữ ghế thành công trả về 201 Created khi có quyền BOOKING_MANAGE")
+    @WithMockUser(authorities = {"BOOKING_MANAGE"})
+    void holdSeats_Authorized_Returns201() throws Exception {
+        com.dongly.modules.booking.dto.HoldSeatsResponse holdResponse =
+                com.dongly.modules.booking.dto.HoldSeatsResponse.builder()
+                        .bookingId(UUID.randomUUID())
+                        .bookingCode("DL-261011-0001")
+                        .status(com.dongly.modules.booking.entity.BookingStatus.HELD)
+                        .heldSeats(List.of("A01"))
+                        .totalEstimatedAmount(new BigDecimal("300000.00"))
+                        .holdExpiresAt(OffsetDateTime.now().plusMinutes(10))
+                        .build();
+
+        when(crmBookingTransactionService.holdSeats(any(), any())).thenReturn(holdResponse);
+
+        String jsonPayload = """
+            {
+              "tripId": "%s",
+              "seatIds": ["%s"],
+              "customerPhone": "0912345678",
+              "customerName": "Nguyễn Văn Nam"
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/crm/bookings/hold")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.bookingCode").value("DL-261011-0001"))
+                .andExpect(jsonPath("$.data.status").value("HELD"));
+    }
+
+    @Test
+    @DisplayName("Từ chối 403 khi gọi API hold mà không có quyền BOOKING_MANAGE")
+    @WithMockUser(authorities = {"BOOKING_READ"})
+    void holdSeats_Unauthorized_Returns403() throws Exception {
+        String jsonPayload = """
+            {
+              "tripId": "%s",
+              "seatIds": ["%s"],
+              "customerPhone": "0912345678",
+              "customerName": "Nguyễn Văn Nam"
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/crm/bookings/hold")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isForbidden());
     }
 }

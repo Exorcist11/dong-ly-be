@@ -61,6 +61,9 @@ class CrmBookingQueryServiceTest {
     @Mock
     private RouteStopRepository routeStopRepository;
 
+    @Mock
+    private com.dongly.modules.booking.repository.BookingItemRepository bookingItemRepository;
+
     @InjectMocks
     private CrmBookingQueryService crmBookingQueryService;
 

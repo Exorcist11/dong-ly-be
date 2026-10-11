@@ -42,6 +42,10 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
     """)
     Optional<Trip> findByIdWithDetails(@Param("id") UUID id);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Trip t WHERE t.id = :id")
+    Optional<Trip> findByIdForUpdate(@Param("id") UUID id);
+
     @Query("""
         SELECT t FROM Trip t
         LEFT JOIN FETCH t.route r
