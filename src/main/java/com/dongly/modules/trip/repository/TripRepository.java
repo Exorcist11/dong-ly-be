@@ -106,4 +106,33 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
             @Param("windowEnd") OffsetDateTime windowEnd,
             @Param("excludeTripId") UUID excludeTripId
     );
+
+    @Query("""
+        SELECT t FROM Trip t
+        LEFT JOIN FETCH t.route r
+        LEFT JOIN FETCH r.originLocation ol
+        LEFT JOIN FETCH r.destinationLocation dl
+        LEFT JOIN FETCH t.vehicle v
+        WHERE t.status IN (com.dongly.modules.trip.entity.TripStatus.SCHEDULED, com.dongly.modules.trip.entity.TripStatus.READY)
+          AND (:routeId IS NULL OR t.route.id = :routeId)
+          AND (:originLocationId IS NULL OR r.originLocation.id = :originLocationId)
+          AND (:destinationLocationId IS NULL OR r.destinationLocation.id = :destinationLocationId)
+          AND t.departureTime >= :startOfDay
+          AND t.departureTime <= :endOfDay
+          AND (
+            :keyword IS NULL OR :keyword = ''
+            OR LOWER(t.code) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            OR LOWER(v.plateNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          )
+    """)
+    Page<Trip> searchCrmTrips(
+            @Param("routeId") UUID routeId,
+            @Param("originLocationId") UUID originLocationId,
+            @Param("destinationLocationId") UUID destinationLocationId,
+            @Param("startOfDay") OffsetDateTime startOfDay,
+            @Param("endOfDay") OffsetDateTime endOfDay,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }

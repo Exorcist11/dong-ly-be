@@ -212,3 +212,32 @@ Phản hồi phân trang tuân thủ mẫu:
   "timestamp": "2026-10-10T00:00:00Z"
 }
 ```
+
+---
+
+## 6. Nhóm Endpoint CRM Booking (`/api/v1/crm/bookings`)
+
+| Method | Endpoint | Quyền hạn yêu cầu | Mô tả |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/crm/bookings/trips/search` | `hasAuthority('BOOKING_READ')` | Tìm kiếm chuyến xe mở bán theo ngày, tuyến đường, địa phương xuất phát/đích và từ khóa. Trả về thông tin chuyến, phương tiện, giá vé, số ghế khả dụng. |
+| `GET` | `/api/v1/crm/bookings/trips/{tripId}/seat-map` | `hasAuthority('BOOKING_READ')` | Lấy sơ đồ lưới ghế (tầng, hàng, cột), danh sách điểm đón/trả và trạng thái chiếm chỗ thời gian thực từng ghế (`AVAILABLE`, `HELD`, `BOOKED`, `LOCKED`). |
+
+### 6.1. Tìm kiếm chuyến xe mở bán (`GET /api/v1/crm/bookings/trips/search`)
+* **Query Parameters**:
+  * `departureDate` (bắt buộc, định dạng `YYYY-MM-DD`, ví dụ: `2026-10-15`)
+  * `routeId` (tùy chọn, UUID)
+  * `originLocationId` (tùy chọn, UUID)
+  * `destinationLocationId` (tùy chọn, UUID)
+  * `keyword` (tùy chọn, chuỗi tìm kiếm mã chuyến, biển số xe, tên tuyến)
+  * `page` (tùy chọn, mặc định 0)
+  * `size` (tùy chọn, mặc định 20, tối đa 100)
+  * `sort` (tùy chọn, mặc định `departureTime,asc`)
+* **Response Body (200 OK)**: Chuẩn `PageResponse<CrmTripSearchResultResponse>`.
+
+### 6.2. Lấy sơ đồ ghế chuyến xe thời gian thực (`GET /api/v1/crm/bookings/trips/{tripId}/seat-map`)
+* **Path Variable**: `tripId` (UUID chuyến xe)
+* **Response Body (200 OK)**: Chuẩn `ApiResponse<CrmTripSeatMapResponse>`.
+  * Bao gồm ma trận kích thước xe (`totalFloors`, `totalRows`, `totalColumns`).
+  * Chi tiết danh sách ghế với cờ `isBookable`, `calculatedPrice` (`basePrice + seatExtraPrice`) và `occupancyStatus`.
+  * Danh sách các điểm dừng đón/trả trên tuyến kèm phụ phí.
+
