@@ -74,6 +74,7 @@ public class CrmBookingTransactionService {
     private final BookingItemRepository bookingItemRepository;
     private final PaymentRepository paymentRepository;
     private final TicketRepository ticketRepository;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     public CrmBookingTransactionService(
             TripRepository tripRepository,
@@ -83,7 +84,9 @@ public class CrmBookingTransactionService {
             BookingRepository bookingRepository,
             BookingItemRepository bookingItemRepository,
             PaymentRepository paymentRepository,
-            TicketRepository ticketRepository
+            TicketRepository ticketRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            org.springframework.transaction.PlatformTransactionManager transactionManager
     ) {
         this.tripRepository = tripRepository;
         this.vehicleSeatRepository = vehicleSeatRepository;
@@ -93,6 +96,14 @@ public class CrmBookingTransactionService {
         this.bookingItemRepository = bookingItemRepository;
         this.paymentRepository = paymentRepository;
         this.ticketRepository = ticketRepository;
+        if (transactionManager != null) {
+            org.springframework.transaction.support.TransactionTemplate tt =
+                    new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+            tt.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            this.transactionTemplate = tt;
+        } else {
+            this.transactionTemplate = null;
+        }
     }
 
     /**
@@ -280,11 +291,25 @@ public class CrmBookingTransactionService {
         // 2. Kiểm tra thời hạn giữ chỗ 10 phút (tại Backend)
         OffsetDateTime now = OffsetDateTime.now();
         if (booking.getHoldExpiresAt().isBefore(now)) {
-            booking.setStatus(BookingStatus.EXPIRED);
-            for (BookingItem item : booking.getItems()) {
-                item.setStatus(BookingItemStatus.EXPIRED);
+            if (transactionTemplate != null) {
+                transactionTemplate.execute(status -> {
+                    Booking b = bookingRepository.findByIdWithDetails(bookingId).orElse(null);
+                    if (b != null) {
+                        b.setStatus(BookingStatus.EXPIRED);
+                        for (BookingItem item : b.getItems()) {
+                            item.setStatus(BookingItemStatus.EXPIRED);
+                        }
+                        bookingRepository.save(b);
+                    }
+                    return null;
+                });
+            } else {
+                booking.setStatus(BookingStatus.EXPIRED);
+                for (BookingItem item : booking.getItems()) {
+                    item.setStatus(BookingItemStatus.EXPIRED);
+                }
+                bookingRepository.save(booking);
             }
-            bookingRepository.save(booking);
             throw new AppException(ErrorCode.SEAT_HOLD_EXPIRED, "Thời hạn giữ ghế 10 phút đã kết thúc, đơn đặt chỗ đã hết hiệu lực");
         }
 
