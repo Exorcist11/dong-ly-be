@@ -50,17 +50,71 @@ public class CrmBookingQueryService {
     private final VehicleSeatRepository vehicleSeatRepository;
     private final RouteStopRepository routeStopRepository;
     private final com.dongly.modules.booking.repository.BookingItemRepository bookingItemRepository;
+    private final com.dongly.modules.booking.repository.BookingRepository bookingRepository;
 
     public CrmBookingQueryService(
             TripRepository tripRepository,
             VehicleSeatRepository vehicleSeatRepository,
             RouteStopRepository routeStopRepository,
-            com.dongly.modules.booking.repository.BookingItemRepository bookingItemRepository
+            com.dongly.modules.booking.repository.BookingItemRepository bookingItemRepository,
+            com.dongly.modules.booking.repository.BookingRepository bookingRepository
     ) {
         this.tripRepository = tripRepository;
         this.vehicleSeatRepository = vehicleSeatRepository;
         this.routeStopRepository = routeStopRepository;
         this.bookingItemRepository = bookingItemRepository;
+        this.bookingRepository = bookingRepository;
+    }
+
+    /**
+     * Tra cứu và phân trang danh sách đơn đặt vé CRM
+     */
+    @Transactional(readOnly = true)
+    public Page<com.dongly.modules.booking.dto.BookingResponse> searchBookings(
+            com.dongly.modules.booking.dto.CrmBookingSearchCriteria criteria
+    ) {
+        OffsetDateTime fromDateTime = criteria.getFromDate() != null
+                ? criteria.getFromDate().atStartOfDay().atOffset(ZoneOffset.ofHours(7))
+                : null;
+        OffsetDateTime toDateTime = criteria.getToDate() != null
+                ? criteria.getToDate().atTime(LocalTime.MAX).atOffset(ZoneOffset.ofHours(7))
+                : null;
+
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        if (criteria.getSort() != null && criteria.getSort().contains(",")) {
+            String[] parts = criteria.getSort().split(",");
+            Sort.Direction dir = parts.length > 1 && parts[1].equalsIgnoreCase("asc")
+                    ? Sort.Direction.ASC
+                    : Sort.Direction.DESC;
+            sort = Sort.by(dir, parts[0]);
+        }
+
+        Pageable pageable = PageRequest.of(Math.max(0, criteria.getPage()), criteria.getSize(), sort);
+
+        String cleanKeyword = (criteria.getKeyword() != null && !criteria.getKeyword().isBlank())
+                ? criteria.getKeyword().trim()
+                : null;
+
+        Page<com.dongly.modules.booking.entity.Booking> pageBookings = bookingRepository.searchBookings(
+                cleanKeyword,
+                criteria.getStatus(),
+                criteria.getTripId(),
+                fromDateTime,
+                toDateTime,
+                pageable
+        );
+
+        return pageBookings.map(com.dongly.modules.booking.dto.BookingResponse::fromEntity);
+    }
+
+    /**
+     * Lấy chi tiết đơn đặt vé theo ID
+     */
+    @Transactional(readOnly = true)
+    public com.dongly.modules.booking.dto.BookingResponse getBookingDetail(UUID id) {
+        com.dongly.modules.booking.entity.Booking booking = bookingRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("đơn đặt vé", id));
+        return com.dongly.modules.booking.dto.BookingResponse.fromEntity(booking);
     }
 
     /**

@@ -434,6 +434,48 @@ public class CrmBookingTransactionService {
     }
 
     /**
+     * Hủy đơn đặt vé đã xác nhận (Booking Cancellation):
+     * - Chỉ áp dụng cho đơn CONFIRMED hoặc HELD.
+     * - Chuyển Booking sang CANCELLED, các BookingItem sang CANCELLED (giải phóng ghế).
+     * - Không tự động hoàn tiền; ghi chú lý do hủy rõ ràng.
+     */
+    @Transactional
+    public BookingResponse cancelBooking(UUID bookingId, String cancelReason, CurrentUser currentUser) {
+        Booking booking = bookingRepository.findByIdWithDetails(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("đơn đặt vé", bookingId));
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new BusinessRuleException("Đơn đặt vé này đã bị hủy trước đó");
+        }
+        if (booking.getStatus() == BookingStatus.EXPIRED) {
+            throw new BusinessRuleException("Đơn giữ chỗ này đã hết hạn, không cần thao tác hủy");
+        }
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            throw new BusinessRuleException("Chuyến xe đã hoàn thành, không thể hủy đơn đặt vé");
+        }
+
+        String staffUsername = currentUser != null ? currentUser.username() : "SYSTEM";
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setUpdatedBy(staffUsername);
+        if (cancelReason != null && !cancelReason.isBlank()) {
+            String updatedNote = booking.getNote() != null
+                    ? booking.getNote() + " | Lý do hủy: " + cancelReason.trim()
+                    : "Lý do hủy: " + cancelReason.trim();
+            booking.setNote(updatedNote);
+        }
+
+        for (BookingItem item : booking.getItems()) {
+            item.setStatus(BookingItemStatus.CANCELLED);
+        }
+
+        Booking saved = bookingRepository.save(booking);
+        log.info("CRM Hủy đơn đặt vé thành công: bookingCode={}, lý do={}, staff={}",
+                saved.getBookingCode(), cancelReason, staffUsername);
+
+        return BookingResponse.fromEntity(saved);
+    }
+
+    /**
      * Tác vụ quét giải phóng các đơn giữ chỗ đã hết hạn 10 phút
      */
     @Transactional

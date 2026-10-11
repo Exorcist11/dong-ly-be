@@ -64,6 +64,9 @@ class CrmBookingQueryServiceTest {
     @Mock
     private com.dongly.modules.booking.repository.BookingItemRepository bookingItemRepository;
 
+    @Mock
+    private com.dongly.modules.booking.repository.BookingRepository bookingRepository;
+
     @InjectMocks
     private CrmBookingQueryService crmBookingQueryService;
 

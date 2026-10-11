@@ -88,4 +88,36 @@ public class CrmBookingController {
         crmBookingTransactionService.cancelHold(id, currentUser);
         return ResponseEntity.ok(ApiResponse.success("Đã hủy giữ chỗ thành công", null));
     }
+
+    @Operation(summary = "Danh sách đơn đặt vé CRM phân trang và bộ lọc (Yêu cầu quyền BOOKING_READ)")
+    @GetMapping
+    @PreAuthorize("hasAuthority('BOOKING_READ')")
+    public ResponseEntity<PageResponse<com.dongly.modules.booking.dto.BookingResponse>> searchBookings(
+            @Valid @ModelAttribute com.dongly.modules.booking.dto.CrmBookingSearchCriteria criteria
+    ) {
+        Page<com.dongly.modules.booking.dto.BookingResponse> page = crmBookingQueryService.searchBookings(criteria);
+        return ResponseEntity.ok(PageResponse.of(page, "Lấy danh sách đơn đặt vé thành công"));
+    }
+
+    @Operation(summary = "Xem chi tiết đơn đặt vé CRM theo ID (Yêu cầu quyền BOOKING_READ)")
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('BOOKING_READ')")
+    public ResponseEntity<ApiResponse<com.dongly.modules.booking.dto.BookingResponse>> getBookingDetail(
+            @PathVariable UUID id
+    ) {
+        com.dongly.modules.booking.dto.BookingResponse response = crmBookingQueryService.getBookingDetail(id);
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin chi tiết đơn đặt vé thành công", response));
+    }
+
+    @Operation(summary = "Hủy đơn đặt vé theo quy định (Yêu cầu quyền BOOKING_MANAGE)")
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('BOOKING_MANAGE')")
+    public ResponseEntity<ApiResponse<com.dongly.modules.booking.dto.BookingResponse>> cancelBooking(
+            @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String reason
+    ) {
+        com.dongly.security.CurrentUser currentUser = com.dongly.security.SecurityUtils.getCurrentUser().orElse(null);
+        com.dongly.modules.booking.dto.BookingResponse response = crmBookingTransactionService.cancelBooking(id, reason, currentUser);
+        return ResponseEntity.ok(ApiResponse.success("Đã hủy đơn đặt vé thành công", response));
+    }
 }

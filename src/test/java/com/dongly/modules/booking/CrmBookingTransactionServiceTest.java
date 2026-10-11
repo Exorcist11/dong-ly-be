@@ -368,4 +368,51 @@ class CrmBookingTransactionServiceTest {
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("không khớp với tổng tiền thực tế của đơn vé");
     }
+
+    @Test
+    @DisplayName("Hủy đơn đặt vé thành công: chuyển trạng thái CANCELLED và giải phóng ghế")
+    void cancelBooking_Success() {
+        UUID bookingId = UUID.randomUUID();
+        BookingItem item1 = BookingItem.builder()
+                .id(UUID.randomUUID())
+                .seat(seatA01)
+                .seatCode("A01")
+                .status(BookingItemStatus.CONFIRMED)
+                .build();
+
+        Booking booking = Booking.builder()
+                .id(bookingId)
+                .bookingCode("DL-261011-0001")
+                .trip(trip)
+                .status(BookingStatus.CONFIRMED)
+                .items(List.of(item1))
+                .build();
+
+        when(bookingRepository.findByIdWithDetails(bookingId)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
+
+        BookingResponse response = transactionService.cancelBooking(bookingId, "Khách bận việc đột xuất", staffUser);
+
+        assertThat(response.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+        assertThat(booking.getItems().get(0).getStatus()).isEqualTo(BookingItemStatus.CANCELLED);
+        assertThat(booking.getNote()).contains("Lý do hủy: Khách bận việc đột xuất");
+        verify(bookingRepository).save(booking);
+    }
+
+    @Test
+    @DisplayName("Chặn hủy đơn khi đơn đã hoàn thành hoặc đã bị hủy trước đó")
+    void cancelBooking_ThrowsException_WhenInvalidStatus() {
+        UUID bookingId = UUID.randomUUID();
+        Booking booking = Booking.builder()
+                .id(bookingId)
+                .bookingCode("DL-261011-0001")
+                .status(BookingStatus.COMPLETED)
+                .build();
+
+        when(bookingRepository.findByIdWithDetails(bookingId)).thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> transactionService.cancelBooking(bookingId, "Hủy thử", staffUser))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("không thể hủy đơn đặt vé");
+    }
 }
